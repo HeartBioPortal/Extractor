@@ -177,10 +177,6 @@ Error messages are logged to stderr with appropriate context.
 
 This project is licensed under the AGPL License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-- Original code by [Kasra Vand]
-- Contributors: []
 
 ## Support
 
