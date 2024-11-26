@@ -1,0 +1,17 @@
+[package]
+name = "extractor"
+version = "0.1.0"
+edition = "2021"
+authors = ["Kasra Vand <kasraavand@gmail.com>"]
+description = "A tool for extracting genetic data from large CSV/TSV files"
+
+[dependencies]
+csv = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+glob = "0.3"
+config = "0.13"
+thiserror = "1.0"
+log = "0.4"
+env_logger = "0.10"
+clap = { version = "4.4", features = ["derive"] }

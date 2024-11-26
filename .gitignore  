@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+Cargo.lock
+.env
+/config/*.local.toml
+.DS_Store
+*.csv
+*.tsv
+*.txt
+/data
