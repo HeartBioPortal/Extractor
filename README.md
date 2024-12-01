@@ -1,183 +1,152 @@
 # Extractor
 
-A high-performance Rust tool for filtering and extracting genetic data from large CSV/TSV files.
+A high-performance Rust library for filtering and processing large CSV files, with support for both streaming and indexed processing modes.
+
 ## Features
 
-- Fast processing of large CSV and TSV files
-- Support for both GWAS and trait data formats
-- Flexible filtering based on gene names and CVD/trait identifiers
-- Two operation modes:
-  - Standard gene-based extraction
-  - Shared genetic architecture (SGA) analysis
-- Configurable input/output paths and delimiters
-- Comprehensive error handling and logging
+- 🚀 High-performance parallel processing of CSV files
+- 📑 Memory-mapped file handling for efficient I/O
+- 🔍 Advanced filtering system with multiple condition types
+- 📖 Optional indexed access mode for rapid filtering
+- 💻 Multi-threaded processing support
+- 🎯 Zero-copy parsing where possible
+- 📊 Progress tracking and statistics
+- 🛡️ Comprehensive error handling
+
+## Performance
+
+- Processes millions of rows per second on modern hardware
+- Memory-efficient streaming mode for large files
+- Optional indexing for repeated queries
+- Parallel processing with configurable thread count
 
 ## Installation
 
-1. Ensure you have Rust installed on your system. If not, install it from [rustup.rs](https://rustup.rs/).
-
-2. Clone the repository:
-```bash
-git clone https://github.com/HeartBioPortal/Extractor.git
-cd extractor
-```
-
-3. Build the project:
-```bash
-cargo build --release
-```
-
-The compiled binary will be available at `target/release/extractor`.
-
-## Configuration
-
-The tool can be configured through a TOML file or environment variables.
-
-### Configuration File
-
-Create a `config/default.toml` file:
+Add this to your `Cargo.toml`:
 
 ```toml
-[paths]
-gwas = "/path/to/gwas/data"
-trait = "/path/to/trait/data"
-output = "/path/to/output"
-
-[files]
-gwas_output = "gwas_consortium_efforts.csv"
-trait_output = "traits.csv"
-sga_output = "shared_genetic_architecture.csv"
-
-[processing]
-gwas_delimiter = ","
-trait_delimiter = "\t"
+[dependencies]
+extractor = "0.1.0"
 ```
 
-### Environment Variables
+## Quick Start
 
-Alternatively, you can use environment variables:
-```bash
-export EXTRACTOR_PATHS__GWAS="/path/to/gwas/data"
-export EXTRACTOR_PATHS__TRAIT="/path/to/trait/data"
-export EXTRACTOR_PATHS__OUTPUT="/path/to/output"
+```rust
+use extractor::{BioFilter, Config, FilterCondition};
+use std::path::PathBuf;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a filter with default configuration
+    let mut filter = BioFilter::builder("input.csv", "output.csv")
+        .with_config(Config::default())
+        .build()?;
+
+    // Add filters
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "gene_expression",
+        FilterCondition::Numeric(NumericCondition::GreaterThan(0.5))
+    )?));
+
+    // Process the file
+    let stats = filter.process()?;
+    println!("Processed {} rows, matched {}", stats.rows_processed, stats.rows_matched);
+
+    Ok(())
+}
 ```
 
-## Usage
+## Advanced Usage
 
-The tool supports two modes of operation: gene-based extraction and SGA analysis.
+### Indexed Mode
 
-### Gene-based Extraction
+For repeated queries on the same file, use indexed mode for better performance:
 
-This mode filters data based on specific CVD/trait names and a gene identifier:
+```rust
+// Build an index
+let index = FileIndex::builder("input.csv", "gene_id")
+    .add_secondary_index("chromosome")
+    .build()?;
+index.save("data.index")?;
 
-```bash
-./target/release/extractor \
-    --sga false \
-    --cvd-names '["CVD1", "CVD2"]' \
-    --trait-names '["TRAIT1", "TRAIT2"]' \
-    --gene "GENE1"
+// Use the index
+let mut filter = BioFilter::builder("input.csv", "output.csv")
+    .with_index("data.index")
+    .build()?;
 ```
 
-### SGA Analysis
+### Custom Filters
 
-This mode performs shared genetic architecture analysis:
+Implement the `Filter` trait for custom filtering logic:
 
-```bash
-./target/release/extractor \
-    --sga true \
-    --cvd-names '[]' \
-    --trait-names '[]' \
-    --gene "GENE1"
+```rust
+struct CustomFilter {
+    column: String,
+}
+
+impl Filter for CustomFilter {
+    fn apply(&self, row: &[u8], headers: &HashMap<String, usize>) -> Result<bool> {
+        // Custom filtering logic here
+    }
+
+    fn column_name(&self) -> &str {
+        &self.column
+    }
+
+    fn description(&self) -> String {
+        format!("Custom filter on {}", self.column)
+    }
+}
 ```
 
-### Command Line Arguments
+### Available Filter Conditions
 
-- `--sga`: Boolean flag to enable SGA mode
-- `--cvd-names`: JSON array of CVD names to filter by
-- `--trait-names`: JSON array of trait names to filter by
-- `--gene`: Gene identifier to filter by
+- Exact match (`Equals`)
+- Substring (`Contains`)
+- Regular expression (`Regex`)
+- Numeric comparisons (`GreaterThan`, `LessThan`, `Equal`)
+- Range checks (`Between`)
+- Multiple values (`OneOf`)
+- Null checks (`Empty`, `NotEmpty`)
 
-## Input File Format
+### Configuration Options
 
-### GWAS Files
-- Format: CSV (comma-separated)
-- Required columns:
-  - MarkerID
-  - pval
-  - Phenotype
-  - Study
-  - snpeff.ann.gene_id (used for gene filtering)
-  - [Other standard GWAS columns]
-
-### Trait Files
-- Format: TSV (tab-separated)
-- Required columns: Same as GWAS files
-
-## Output Files
-
-The tool generates up to three output files:
-
-1. `gwas_consortium_efforts.csv`: Filtered GWAS data
-2. `traits.csv`: Filtered trait data
-3. `shared_genetic_architecture.csv`: Results of SGA analysis
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all tests
-cargo test
-
-# Run tests with logging
-RUST_LOG=debug cargo test -- --nocapture
+```rust
+let config = Config {
+    delimiter: b',',
+    has_headers: true,
+    chunk_size: 1024 * 1024,  // 1MB chunks
+    parallel: true,
+    use_index: false,
+    num_threads: Some(4),
+    progress: ProgressConfig::default(),
+};
 ```
 
-### Directory Structure
+## Performance Tips
 
-```
-.
-├── Cargo.toml
-├── config/
-│   └── default.toml
-├── src/
-│   ├── main.rs
-│   ├── config.rs
-│   ├── error.rs
-│   ├── types.rs
-│   └── extractors/
-│       ├── mod.rs
-│       ├── gene.rs
-│       └── sga.rs
-└── tests/
-    ├── data/
-    └── integration_tests.rs
-```
+1. Use indexed mode for repeated queries on the same file
+2. Adjust chunk size based on your system's memory
+3. Enable parallel processing for multi-core systems
+4. Use memory mapping for large files
+5. Consider pre-filtering columns when building indices
 
 ## Error Handling
 
-The tool includes comprehensive error handling for:
-- File I/O operations
-- CSV/TSV parsing
-- Configuration loading
-- Command-line argument parsing
-- JSON parsing
+The library provides detailed error types for different failure scenarios:
 
-Error messages are logged to stderr with appropriate context.
+```rust
+match result {
+    Err(ExtractorError::Io { source, path }) => // Handle I/O errors
+    Err(ExtractorError::Csv(e)) => // Handle CSV parsing errors
+    Err(ExtractorError::Index { kind, path }) => // Handle index-related errors
+    // etc.
+}
+```
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the AGPL License - see the [LICENSE](LICENSE) file for details.
-
-
-## Support
-
-For support, please open an issue on the GitHub repository or contact heartbioportal@gmail.com.
+This project is licensed under the GNU Affero General Public License - see the [LICENSE](LICENSE) file for details.
