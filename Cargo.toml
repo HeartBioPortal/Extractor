@@ -1,9 +1,9 @@
 [package]
 name = "extractor"
 version = "0.1.0"
-edition = "2021"
-authors = ["Kasra Vand <kvand@iu.edu>", "Bohdan Khomtchouk <bokhomt@iu.edu>"]
-description = "High-performance CSV file filtering library with indexed access support"
+edition = "2024"
+authors = ["Your Name <your.email@example.com>"]
+description = "High-performance biological CSV file filtering library with indexed access support"
 repository = "https://github.com/HeartBioPortal/Extractor"
 documentation = "https://docs.rs/extractor"
 readme = "README.md"
@@ -32,9 +32,10 @@ tracing-subscriber = "0.3"    # Logging implementation
 
 # Utilities
 bytes = "1.5"                 # Efficient byte buffer operations
-indicatif = "0.17"           # Progress bars
+indicatif = { version = "0.17", optional = true }  # Progress bars
 regex = "1.10"               # Regular expressions for pattern matching
 itertools = "0.12"           # Iterator utilities
+num_cpus = "1.15"           # CPU count detection
 
 [dev-dependencies]
 # Testing
@@ -52,7 +53,7 @@ dhat = "0.3"                  # Heap profiling
 
 [features]
 default = ["progress-bars"]
-progress-bars = ["indicatif"]
+progress-bars = ["dep:indicatif"]
 compression = []              # Future support for compressed files
 extended-stats = []           # Future support for statistical analysis
 
