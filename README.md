@@ -7,7 +7,7 @@ A high-performance Rust library for filtering and processing large CSV files, wi
 - 🚀 High-performance parallel processing of CSV files
 - 📑 Memory-mapped file handling for efficient I/O
 - 🔍 Advanced filtering system with multiple condition types
-- 📖 Optional indexed access mode for rapid filtering
+- 🤹 Optional indexed access mode for rapid filtering
 - 💻 Multi-threaded processing support
 - 🎯 Zero-copy parsing where possible
 - 📊 Progress tracking and statistics
