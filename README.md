@@ -149,4 +149,4 @@ Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) 
 
 ## License
 
-This project is licensed under the GNU Affero General Public License - see the [LICENSE](https://github.com/HeartBioPortal/Extractor/blob/main/LICENCE) file for details.
+This project is licensed under the GNU Affero General Public License - see the [LICENSE](https://github.com/HeartBioPortal/Extractor/blob/main/LICENCE) file for more details.
