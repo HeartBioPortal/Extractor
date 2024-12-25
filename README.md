@@ -139,7 +139,6 @@ match result {
     Err(ExtractorError::Io { source, path }) => // Handle I/O errors
     Err(ExtractorError::Csv(e)) => // Handle CSV parsing errors
     Err(ExtractorError::Index { kind, path }) => // Handle index-related errors
-    // etc.
 }
 ```
 
