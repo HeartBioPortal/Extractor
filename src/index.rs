@@ -232,14 +232,139 @@ struct IndexBuilderState {
 }
 
 impl IndexBuilderState {
-    fn build_index(&mut self) -> Result<()> {
-        // Implementation details for building the index
-        // This would involve:
-        // 1. Reading the CSV in chunks
-        // 2. Building primary and secondary indices
-        // 3. Handling errors and edge cases
-        todo!("Implement index building")
+    /// Implementation of index building for IndexBuilderState
+fn build_index(&mut self) -> Result<()> {
+    let file_size = self.file.metadata()?.len();
+    let mut reader = BufReader::with_capacity(self.chunk_size, &self.file);
+    
+    // Read and parse headers first
+    let mut headers_line = String::new();
+    let header_pos = reader.stream_position()?;
+    reader.read_line(&mut headers_line)?;
+    let headers: Vec<String> = headers_line.trim().split(',').map(String::from).collect();
+
+    // Find column indices
+    let primary_idx = headers.iter()
+        .position(|h| h == &self.primary_column)
+        .ok_or_else(|| ExtractorError::Index {
+            kind: IndexErrorKind::BuildError("Primary column not found".into()),
+            path: None,
+        })?;
+
+    let secondary_indices: Vec<usize> = self.secondary_columns.iter()
+        .map(|col| headers.iter().position(|h| h == col))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| ExtractorError::Index {
+            kind: IndexErrorKind::BuildError("One or more secondary columns not found".into()),
+            path: None,
+        })?;
+
+    // Store header position
+    let header_position = Position {
+        offset: header_pos,
+        length: headers_line.len() as u32,
+        row_number: 0,
+    };
+
+    // Initialize progress bar if feature is enabled
+    #[cfg(feature = "progress-bars")]
+    let progress = indicatif::ProgressBar::new(file_size);
+    #[cfg(feature = "progress-bars")]
+    progress.set_style(
+        indicatif::ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .unwrap()
+            .progress_chars("=>-")
+    );
+
+    let mut row_number: u64 = 1;  // Start after header
+    let mut line = String::new();
+    let mut in_quoted_field = false;
+    
+    while reader.read_line(&mut line)? > 0 {
+        let start_pos = reader.stream_position()? - line.len() as u64;
+        
+        // Skip empty lines
+        if line.trim().is_empty() {
+            line.clear();
+            continue;
+        }
+
+        // Parse the line considering quoted fields
+        let mut fields = Vec::new();
+        let mut current_field = String::new();
+        
+        for c in line.chars() {
+            match c {
+                '"' => in_quoted_field = !in_quoted_field,
+                ',' if !in_quoted_field => {
+                    fields.push(std::mem::take(&mut current_field));
+                },
+                _ => current_field.push(c),
+            }
+        }
+        fields.push(current_field);  // Add the last field
+
+        // Create position record
+        let position = Position {
+            offset: start_pos,
+            length: line.len() as u32,
+            row_number,
+        };
+
+        // Store primary index
+        if let Some(primary_value) = fields.get(primary_idx) {
+            let primary_key = primary_value.trim().to_string();
+            if !primary_key.is_empty() {
+                // Check for duplicates
+                if self.positions.contains_key(&primary_key) {
+                    return Err(ExtractorError::Index {
+                        kind: IndexErrorKind::BuildError(
+                            format!("Duplicate primary key found: {}", primary_key)
+                        ),
+                        path: None,
+                    });
+                }
+                self.positions.insert(primary_key, position.clone());
+            }
+        }
+
+        // Store secondary indices
+        for (idx, &sec_idx) in secondary_indices.iter().enumerate() {
+            if let Some(sec_value) = fields.get(sec_idx) {
+                let sec_key = sec_value.trim().to_string();
+                if !sec_key.is_empty() {
+                    self.secondary_indices
+                        .entry(self.secondary_columns[idx].clone())
+                        .or_insert_with(HashMap::new())
+                        .entry(sec_key)
+                        .or_insert_with(Vec::new)
+                        .push(position.clone());
+                }
+            }
+        }
+
+        // Update progress
+        #[cfg(feature = "progress-bars")]
+        progress.set_position(reader.stream_position()?);
+
+        row_number += 1;
+        line.clear();
     }
+
+    #[cfg(feature = "progress-bars")]
+    progress.finish_with_message("Index built successfully");
+
+    // Validate index
+    if self.positions.is_empty() {
+        return Err(ExtractorError::Index {
+            kind: IndexErrorKind::BuildError("No valid rows found for indexing".into()),
+            path: None,
+        });
+    }
+
+    Ok(())
+}
 
     fn calculate_checksum(&self) -> Result<u64> {
         let mut buffer = [0u8; 8192];
