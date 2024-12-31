@@ -121,7 +121,6 @@ impl BioFilter {
             utils::create_mmap(&input, &SafeMmapOptions::default())?
         };
         let mmap = Arc::new(mmap);
-
         // Spawn processing threads
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(self.config.num_threads.unwrap_or_else(num_cpus::get))
