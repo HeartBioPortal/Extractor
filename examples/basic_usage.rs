@@ -10,7 +10,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("1. Basic Filtering - Gene Expression Analysis");
     expression_analysis()?;
-
+    
+    println!("\n2. Multiple Conditions - QC Filtering");
+    quality_control_filtering()?;
 
     Ok(())
 }
@@ -28,6 +30,33 @@ fn expression_analysis() -> Result<(), Box<dyn std::error::Error>> {
 
     let stats = filter.process()?;
     println!("Found {} highly expressed genes", stats.rows_matched);
+    Ok(())
+}
+
+
+/// Example 2: Multiple QC filters
+fn quality_control_filtering() -> Result<(), Box<dyn std::error::Error>> {
+    let mut filter = BioFilter::builder("sample_data.csv", "qc_passed.csv")
+        .build()?;
+
+    // Add multiple QC filters
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "read_count".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "mapping_quality".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(30.0))
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "duplicate_rate".to_string(),
+        FilterCondition::Numeric(NumericCondition::LessThan(0.1))
+    )?));
+
+    let stats = filter.process()?;
+    println!("Identified {} high-quality samples", stats.rows_matched);
     Ok(())
 }
 
