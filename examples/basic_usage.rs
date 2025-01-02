@@ -14,6 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n2. Multiple Conditions - QC Filtering");
     quality_control_filtering()?;
     
+    println!("\n3. Chromosomal Region Analysis");
+    chromosome_analysis()?;
+    
     Ok(())
 }
 
