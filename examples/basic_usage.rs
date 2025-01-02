@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("1. Basic Filtering - Gene Expression Analysis");
     expression_analysis()?;
-    
+
     println!("\n2. Multiple Conditions - QC Filtering");
     quality_control_filtering()?;
 
@@ -59,6 +59,35 @@ fn quality_control_filtering() -> Result<(), Box<dyn std::error::Error>> {
     println!("Identified {} high-quality samples", stats.rows_matched);
     Ok(())
 }
+
+
+/// Example 3: Chromosome-specific analysis
+fn chromosome_analysis() -> Result<(), Box<dyn std::error::Error>> {
+    // First, create an index for faster chromosome-based queries
+    let index = FileIndex::builder("sample_data.csv", "chromosome")
+        .build()?;
+    index.save("sample_data.index")?;
+
+    let mut filter = BioFilter::builder("sample_data.csv", "chr1_genes.csv")
+        .with_index("sample_data.index")
+        .build()?;
+
+    // Filter for genes on chromosome 1 with specific conditions
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "chromosome".to_string(),
+        FilterCondition::Equals("chr1".to_string())
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "start_position".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(1000000.0))
+    )?));
+
+    let stats = filter.process()?;
+    println!("Found {} genes on chromosome 1", stats.rows_matched);
+    Ok(())
+}
+
 
 /// Create sample data for examples
 fn create_sample_data() -> Result<(), Box<dyn std::error::Error>> {
