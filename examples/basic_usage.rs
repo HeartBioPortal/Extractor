@@ -20,6 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n4. P-value Based Filtering");
     pvalue_filtering()?;
 
+    println!("\n5. Complex Filtering - DEG Analysis");
+    deg_analysis()?;
     
     Ok(())
 }
@@ -117,6 +119,42 @@ fn pvalue_filtering() -> Result<(), Box<dyn std::error::Error>> {
 
     let stats = filter.process()?;
     println!("Found {} differentially expressed genes", stats.rows_matched);
+    Ok(())
+}
+
+/// Example 5: Complex DEG analysis
+
+fn deg_analysis() -> Result<(), Box<dyn std::error::Error>> {
+    let mut filter = BioFilter::builder("sample_data.csv", "significant_degs.csv")
+        .build()?;
+
+    // Multiple conditions for DEG analysis
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "p_value".to_string(),
+        FilterCondition::Numeric(NumericCondition::LessThan(0.05))
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "adj_p_value".to_string(),
+        FilterCondition::Numeric(NumericCondition::LessThan(0.1))
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "log2fc".to_string(),
+        FilterCondition::Range(RangeCondition {
+            min: 1.0,
+            max: f64::INFINITY,
+            inclusive: true,
+        })
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "base_mean".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(10.0))
+    )?));
+
+    let stats = filter.process()?;
+    println!("Found {} significant DEGs", stats.rows_matched);
     Ok(())
 }
 
