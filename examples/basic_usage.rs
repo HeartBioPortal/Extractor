@@ -16,6 +16,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("\n3. Chromosomal Region Analysis");
     chromosome_analysis()?;
+
+    println!("\n4. P-value Based Filtering");
+    pvalue_filtering()?;
+
     
     Ok(())
 }
@@ -91,6 +95,30 @@ fn chromosome_analysis() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Example 4: Statistical significance filtering
+fn pvalue_filtering() -> Result<(), Box<dyn std::error::Error>> {
+    let mut filter = BioFilter::builder("sample_data.csv", "significant_genes.csv")
+        .build()?;
+
+    // Filter for statistically significant results
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "p_value".to_string(),
+        FilterCondition::Numeric(NumericCondition::LessThan(0.05))
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "fold_change".to_string(),
+        FilterCondition::Range(RangeCondition {
+            min: -2.0,
+            max: 2.0,
+            inclusive: false,
+        })
+    )?));
+
+    let stats = filter.process()?;
+    println!("Found {} differentially expressed genes", stats.rows_matched);
+    Ok(())
+}
 
 /// Create sample data for examples
 fn create_sample_data() -> Result<(), Box<dyn std::error::Error>> {
