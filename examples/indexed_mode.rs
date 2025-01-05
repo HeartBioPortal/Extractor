@@ -13,6 +13,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("1. Creating and Using Primary Index");
     primary_index_example()?;
 
+    println!("\n2. Secondary Index Usage");
+    secondary_index_example()?;
+    
     Ok(())
 }
 
@@ -38,6 +41,34 @@ fn primary_index_example() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+// Example 2: Using secondary indices
+fn secondary_index_example() -> Result<(), Box<dyn std::error::Error>> {
+    // Create index with secondary columns
+    let index = FileIndex::builder("large_dataset.csv", "gene_id")
+        .add_secondary_index("chromosome")
+        .add_secondary_index("gene_type")
+        .build()?;
+    index.save("multi_index.json")?;
+
+    // Use secondary index for chromosome-based query
+    let mut filter = BioFilter::builder("large_dataset.csv", "output_secondary.csv")
+        .with_index("multi_index.json")
+        .build()?;
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "chromosome".to_string(),
+        FilterCondition::Equals("chr1".to_string())
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "gene_type".to_string(),
+        FilterCondition::Equals("protein_coding".to_string())
+    )?));
+
+    let stats = filter.process()?;
+    println!("Found {} protein-coding genes on chr1", stats.rows_matched);
+    Ok(())
+}
 
 /// Create a large sample dataset
 fn create_large_dataset() -> Result<(), Box<dyn std::error::Error>> {
