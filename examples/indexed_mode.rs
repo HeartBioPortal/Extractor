@@ -15,7 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n2. Secondary Index Usage");
     secondary_index_example()?;
-    
+
+    println!("\n3. Performance Comparison");
+    performance_comparison()?;
+
     Ok(())
 }
 
@@ -67,6 +70,47 @@ fn secondary_index_example() -> Result<(), Box<dyn std::error::Error>> {
 
     let stats = filter.process()?;
     println!("Found {} protein-coding genes on chr1", stats.rows_matched);
+    Ok(())
+}
+
+/// Example 3: Compare performance with and without index
+fn performance_comparison() -> Result<(), Box<dyn std::error::Error>> {
+    // Without index
+    let start = Instant::now();
+    let mut filter_no_index = BioFilter::builder("large_dataset.csv", "output_no_index.csv")
+        .build()?;
+
+    filter_no_index.add_filter(Box::new(ColumnFilter::new(
+        "tpm".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
+    )?));
+
+    let stats_no_index = filter_no_index.process()?;
+    let time_no_index = start.elapsed();
+
+    // With index
+    let start = Instant::now();
+    let index = FileIndex::builder("large_dataset.csv", "gene_id")
+        .add_secondary_index("tpm")
+        .build()?;
+    index.save("expression_index.json")?;
+
+    let mut filter_with_index = BioFilter::builder("large_dataset.csv", "output_with_index.csv")
+        .with_index("expression_index.json")
+        .build()?;
+
+    filter_with_index.add_filter(Box::new(ColumnFilter::new(
+        "tpm".to_string(),
+        FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
+    )?));
+
+    let stats_with_index = filter_with_index.process()?;
+    let time_with_index = start.elapsed();
+
+    println!("Performance comparison:");
+    println!("Without index: {:?}", time_no_index);
+    println!("With index: {:?}", time_with_index);
+    println!("Speedup: {:.2}x", time_no_index.as_secs_f64() / time_with_index.as_secs_f64());
     Ok(())
 }
 
