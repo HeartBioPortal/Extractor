@@ -19,6 +19,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n3. Performance Comparison");
     performance_comparison()?;
 
+    println!("\n4. Random Access Using Index");
+    random_access_example()?;
+    
     Ok(())
 }
 
@@ -111,6 +114,24 @@ fn performance_comparison() -> Result<(), Box<dyn std::error::Error>> {
     println!("Without index: {:?}", time_no_index);
     println!("With index: {:?}", time_with_index);
     println!("Speedup: {:.2}x", time_no_index.as_secs_f64() / time_with_index.as_secs_f64());
+    Ok(())
+}
+
+/// Example 4: Random access using index
+fn random_access_example() -> Result<(), Box<dyn std::error::Error>> {
+    let index = FileIndex::load("gene_index.json")?;
+
+    // Access specific genes by ID
+    let genes_of_interest = vec!["ENSG00000139618", "ENSG00000141510", "ENSG00000157764"];
+    
+    for gene_id in genes_of_interest {
+        if let Some(position) = index.get_position(gene_id) {
+            // Read the specific row using the position
+            let row = read_row_at_position("large_dataset.csv", position)?;
+            println!("Found gene {}: {}", gene_id, String::from_utf8_lossy(&row));
+        }
+    }
+
     Ok(())
 }
 
