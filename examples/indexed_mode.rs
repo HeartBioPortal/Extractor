@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n4. Random Access Using Index");
     random_access_example()?;
-    
+
     Ok(())
 }
 
@@ -132,6 +132,42 @@ fn random_access_example() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    Ok(())
+}
+
+/// Example 5: Complex query using multiple indices
+fn complex_query_example() -> Result<(), Box<dyn std::error::Error>> {
+    // Create comprehensive index
+    let index = FileIndex::builder("large_dataset.csv", "gene_id")
+        .add_secondary_index("chromosome")
+        .add_secondary_index("gene_type")
+        .add_secondary_index("tpm")
+        .build()?;
+    index.save("complex_index.json")?;
+
+    let mut filter = BioFilter::builder("large_dataset.csv", "output_complex.csv")
+        .with_index("complex_index.json")
+        .build()?;
+
+    // Complex filtering criteria
+
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "gene_type".to_string(),
+        FilterCondition::Equals("protein_coding".to_string())
+    )?));
+
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "tpm".to_string(),
+        FilterCondition::Range(RangeCondition {
+            min: 10.0,
+            max: 1000.0,
+            inclusive: true,
+        })
+    )?));
+
+    let stats = filter.process()?;
+    println!("Complex query found {} matching genes", stats.rows_matched);
     Ok(())
 }
 
