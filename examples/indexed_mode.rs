@@ -22,6 +22,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n4. Random Access Using Index");
     random_access_example()?;
 
+    println!("\n5. Complex Query with Index");
+    complex_query_example()?;
+
     Ok(())
 }
 
