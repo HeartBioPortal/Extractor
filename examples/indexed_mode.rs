@@ -150,7 +150,14 @@ fn complex_query_example() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // Complex filtering criteria
-
+    filter.add_filter(Box::new(ColumnFilter::new(
+        "chromosome".to_string(),
+        FilterCondition::OneOf(vec![
+            "chr1".to_string(),
+            "chr2".to_string(),
+            "chrX".to_string(),
+        ])
+    )?));
 
     filter.add_filter(Box::new(ColumnFilter::new(
         "gene_type".to_string(),
