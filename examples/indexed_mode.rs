@@ -10,8 +10,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     create_large_dataset()?;
 
     // Demonstrate different indexing scenarios
-    println!("1. Creating and Using Primary Index");
-    primary_index_example()?;
 
     println!("\n2. Secondary Index Usage");
     secondary_index_example()?;
@@ -28,27 +26,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Example 1: Basic primary index usage
-fn primary_index_example() -> Result<(), Box<dyn std::error::Error>> {
-    // Create index on gene_id
-    let index = FileIndex::builder("large_dataset.csv", "gene_id")
-        .build()?;
-    index.save("gene_index.json")?;
-
-    // Use index for filtering
-    let mut filter = BioFilter::builder("large_dataset.csv", "output_primary.csv")
-        .with_index("gene_index.json")
-        .build()?;
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "gene_id".to_string(),
-        FilterCondition::Regex("ENSG.*001".to_string())
-    )?));
-
-    let stats = filter.process()?;
-    println!("Found {} matching genes using primary index", stats.rows_matched);
-    Ok(())
-}
 
 // Example 2: Using secondary indices
 fn secondary_index_example() -> Result<(), Box<dyn std::error::Error>> {
