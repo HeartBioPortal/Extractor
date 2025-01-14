@@ -46,18 +46,3 @@ pub trait FormatDetector {
     /// Validate file format
     fn validate(path: &Path) -> Result<bool>;
 }
-
-/// Common biological data filters
-pub trait BioFilter {
-    /// Filter by GC content
-    fn gc_content(&self) -> f64;
-    
-    /// Filter by sequence length
-    fn sequence_length(&self) -> usize;
-    
-    /// Filter by quality score
-    fn min_quality_score(&self) -> Option<u8>;
-    
-    /// Check if sequence contains pattern
-    fn contains_pattern(&self, pattern: &[u8]) -> bool;
-}
