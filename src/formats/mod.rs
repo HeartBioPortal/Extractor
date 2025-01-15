@@ -42,7 +42,6 @@ pub trait BioRecord: Send + Sync {
 pub trait FormatDetector {
     /// Detect file format from content
     fn detect_format(path: &Path) -> Result<FileFormat>;
-    
     /// Validate file format
     fn validate(path: &Path) -> Result<bool>;
 }
