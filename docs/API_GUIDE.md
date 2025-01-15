@@ -147,3 +147,44 @@ let config = Config {
     ..Config::default()
 };
 ```
+
+Best practices:
+- For I/O-bound operations: threads = cores * 2
+- For CPU-bound operations: threads = cores
+- Monitor system resources to find optimal settings
+
+### Index Optimization
+
+Create indices for frequently queried columns:
+
+```rust
+let index = FileIndex::builder("data.csv", "gene_id")
+    .add_secondary_index("chromosome")
+    .add_secondary_index("gene_type")
+    .build()?;
+```
+
+Consider:
+- Index size vs. query speed trade-off
+- Column cardinality (unique values)
+- Query patterns
+
+## Migration Guide
+
+### Migrating from 0.1.x to 0.2.x
+
+Key changes:
+1. Builder pattern introduction
+2. New error types
+3. Enhanced configuration options
+
+Before (0.1.x):
+```rust
+let filter = BioFilter::new("input.csv", "output.csv")?;
+```
+
+After (0.2.x):
+```rust
+let filter = BioFilter::builder("input.csv", "output.csv")
+    .build()?;
+```
