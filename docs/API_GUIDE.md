@@ -130,3 +130,20 @@ let config = Config {
     ..Config::default()
 };
 ```
+
+Guidelines for chunk size:
+- Small files (<100MB): 1MB chunks
+- Medium files (100MB-1GB): 4MB chunks
+- Large files (>1GB): 16MB chunks
+
+### Parallel Processing
+
+Optimize thread count based on your system:
+
+```rust
+let config = Config {
+    parallel: true,
+    num_threads: Some(num_cpus::get()),  // Use all available cores
+    ..Config::default()
+};
+```
