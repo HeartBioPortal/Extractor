@@ -25,7 +25,6 @@ pub struct NumericStats {
     pub max: f64,
     pub mean: f64,
     pub median: f64,
-    pub std_dev: f64,
     pub quartiles: [f64; 3],
 }
 
