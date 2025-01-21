@@ -15,9 +15,7 @@ pub struct ColumnStats {
     pub data_type: DataType,
     pub unique_values: u64,
     pub null_count: u64,
-    pub numeric_stats: Option<NumericStats>,
-    pub string_stats: Option<StringStats>,
-}
+
 
 #[derive(Debug)]
 pub struct NumericStats {
