@@ -33,25 +33,3 @@ pub enum SchemaConstraint {
     Unique(String),
     Check { column: String, condition: String },
 }
-
-impl SchemaInference {
-    /// Create new schema inference tool
-    pub fn new() -> Self {
-        Self {
-            sample_size: 1000,
-            confidence_threshold: 0.95,
-        }
-    }
-
-    /// Infer schema from data file
-    pub fn infer_schema(&self, path: &str) -> Result<InferredSchema> {
-        // Implementation
-        todo!("Implement schema inference")
-    }
-
-    /// Generate schema creation SQL
-    pub fn generate_sql(&self, schema: &InferredSchema) -> String {
-        // Implementation
-        todo!("Implement SQL generation")
-    }
-}
