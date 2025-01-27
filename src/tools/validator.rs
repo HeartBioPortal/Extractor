@@ -13,7 +13,7 @@ pub enum ValidationRule {
 }
 
 /// Data validation tool
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DataValidator {
     rules: Vec<ValidationRule>,
     stop_on_error: bool,
@@ -23,11 +23,7 @@ pub struct DataValidator {
 impl DataValidator {
     /// Create new validator
     pub fn new() -> Self {
-        Self {
-            rules: Vec::new(),
-            stop_on_error: false,
-            report_all_errors: true,
-        }
+        Self::default()
     }
 
     /// Add validation rule
@@ -43,7 +39,7 @@ impl DataValidator {
 }
 
 /// Validation report
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ValidationReport {
     pub valid: bool,
     pub errors: Vec<ValidationError>,
