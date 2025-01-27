@@ -23,22 +23,42 @@ pub trait Filter: Send + Sync {
 /// Filter condition types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FilterCondition {
-    /// Exact match
     Equals(String),
-    /// Contains substring
     Contains(String),
-    /// Matches regex pattern
     Regex(String),
-    /// Numeric comparisons
     Numeric(NumericCondition),
-    /// Multiple possible values
     OneOf(Vec<String>),
-    /// Range filter
     Range(RangeCondition),
-    /// Missing or empty value
     Empty,
-    /// Has any value
     NotEmpty,
+}
+
+impl FilterCondition {
+    /// Get a description of the filter condition
+    pub fn description(&self, column: &str) -> String {
+        match self {
+            FilterCondition::Equals(target) => format!("{} equals '{}'", column, target),
+            FilterCondition::Contains(substring) => format!("{} contains '{}'", column, substring),
+            FilterCondition::Regex(pattern) => format!("{} matches regex '{}'", column, pattern),
+            FilterCondition::Numeric(num_condition) => match num_condition {
+                NumericCondition::GreaterThan(v) => format!("{} > {}", column, v),
+                NumericCondition::LessThan(v) => format!("{} < {}", column, v),
+                NumericCondition::Equal(v) => format!("{} = {}", column, v),
+                NumericCondition::NotEqual(v) => format!("{} != {}", column, v),
+            },
+            FilterCondition::OneOf(values) => format!("{} in {:?}", column, values),
+            FilterCondition::Range(range) => format!(
+                "{} {} {} and {} {}",
+                column,
+                if range.inclusive { ">=" } else { ">" },
+                range.min,
+                if range.inclusive { "<=" } else { "<" },
+                range.max
+            ),
+            FilterCondition::Empty => format!("{} is empty", column),
+            FilterCondition::NotEmpty => format!("{} is not empty", column),
+        }
+    }
 }
 
 /// Numeric comparison conditions
