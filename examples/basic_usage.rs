@@ -49,20 +49,24 @@ fn quality_control_filtering() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     // Add multiple QC filters
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "read_count".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
-    )?));
+    let qc_filters = vec![
+        ColumnFilter::new(
+            "read_count".to_string(),
+            FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
+        )?,
+        ColumnFilter::new(
+            "mapping_quality".to_string(),
+            FilterCondition::Numeric(NumericCondition::GreaterThan(30.0))
+        )?,
+        ColumnFilter::new(
+            "duplicate_rate".to_string(),
+            FilterCondition::Numeric(NumericCondition::LessThan(0.1))
+        )?,
+    ];
 
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "mapping_quality".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(30.0))
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "duplicate_rate".to_string(),
-        FilterCondition::Numeric(NumericCondition::LessThan(0.1))
-    )?));
+    for filter_condition in qc_filters {
+        filter.add_filter(Box::new(filter_condition));
+    }
 
     let stats = filter.process()?;
     println!("Identified {} high-quality samples", stats.rows_matched);
@@ -72,13 +76,16 @@ fn quality_control_filtering() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Example 3: Chromosome-specific analysis
 fn chromosome_analysis() -> Result<(), Box<dyn std::error::Error>> {
-    // First, create an index for faster chromosome-based queries
-    let index = FileIndex::builder("sample_data.csv", "chromosome")
-        .build()?;
-    index.save("sample_data.index")?;
+    // Create an index for faster chromosome-based queries
+    let index_path = "sample_data.index";
+    if !PathBuf::from(index_path).exists() {
+        let index = FileIndex::builder("sample_data.csv", "chromosome")
+            .build()?;
+        index.save(index_path)?;
+    }
 
     let mut filter = BioFilter::builder("sample_data.csv", "chr1_genes.csv")
-        .with_index("sample_data.index")
+        .with_index(index_path)
         .build()?;
 
     // Filter for genes on chromosome 1 with specific conditions
@@ -89,7 +96,7 @@ fn chromosome_analysis() -> Result<(), Box<dyn std::error::Error>> {
 
     filter.add_filter(Box::new(ColumnFilter::new(
         "start_position".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(1000000.0))
+        FilterCondition::Numeric(NumericCondition::GreaterThan(1_000_000.0))
     )?));
 
     let stats = filter.process()?;
