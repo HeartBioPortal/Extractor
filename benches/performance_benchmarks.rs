@@ -164,16 +164,17 @@ fn setup_benchmark_data(filename: &str, rows: usize) -> Result<(), Box<dyn std::
     writeln!(file, "gene_id,gene_name,chromosome,expression,p_value")?;
     
     // Generate test data
-    for i in 0..rows {
+    let data = (0..rows).map(|i| {
         let gene_id = format!("GENE_{}", i);
         let gene_name = format!("Name_{}", i);
         let chr = format!("chr{}", (i % 23) + 1);
         let expression = (i as f64 % 100.0) + 0.1;
         let p_value = (i as f64 + 1.0).recip();
         
-        writeln!(file, "{},{},{},{:.2},{:.4}", 
-            gene_id, gene_name, chr, expression, p_value)?;
-    }
+        format!("{},{},{},{:.2},{:.4}", gene_id, gene_name, chr, expression, p_value)
+    }).collect::<Vec<_>>().join("\n");
+    
+    file.write_all(data.as_bytes())?;
     
     Ok(())
 }
