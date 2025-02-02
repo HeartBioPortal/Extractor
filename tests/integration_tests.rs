@@ -53,4 +53,56 @@ mod tests {
         // Assert
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_function_one_empty_input() {
+        // Arrange
+        let input = "";
+        let expected = "empty output";
+
+        // Act
+        let result = function_one(input);
+
+        // Assert
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_function_two_negative_input() {
+        // Arrange
+        let input = -42;
+        let expected = -84;
+
+        // Act
+        let result = function_two(input);
+
+        // Assert
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_function_three_empty_vector() {
+        // Arrange
+        let input = vec![];
+        let expected = vec![];
+
+        // Act
+        let result = function_three(&input);
+
+        // Assert
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_function_four_special_characters() {
+        // Arrange
+        let input = "!@#$%^&*()";
+        let expected = "special output";
+
+        // Act
+        let result = function_four(input);
+
+        // Assert
+        assert_eq!(result, expected);
+    }
 }
