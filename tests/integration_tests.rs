@@ -65,6 +65,10 @@ mod tests {
 
         // Assert
         assert_eq!(result, expected);
+
+        // Additional checks
+        assert!(result.is_empty(), "Result should be empty for empty input");
+        assert_ne!(result, "non-empty output", "Result should not be non-empty for empty input");
     }
 
     #[test]
@@ -74,10 +78,17 @@ mod tests {
         let expected = -84;
 
         // Act
+        let start_time = std::time::Instant::now();
         let result = function_two(input);
+        let duration = start_time.elapsed();
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, expected, "The function did not return the expected result for negative input");
+        assert!(duration.as_millis() < 10, "The function took too long to execute");
+
+        // Additional checks
+        assert!(result.is_negative(), "Result should be negative for negative input");
+        assert_ne!(result, 0, "Result should not be zero for non-zero input");
     }
 
     #[test]
