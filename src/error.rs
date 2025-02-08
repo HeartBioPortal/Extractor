@@ -173,7 +173,12 @@ mod tests {
     fn test_io_error_creation() {
         let io_err = io::Error::new(ErrorKind::NotFound, "file not found");
         let err = ExtractorError::io_error(io_err, "test.csv");
-        assert!(matches!(err, ExtractorError::Io { .. }));
+        if let ExtractorError::Io { source, path } = err {
+            assert_eq!(source.kind(), ErrorKind::NotFound);
+            assert_eq!(path.unwrap().to_str().unwrap(), "test.csv");
+        } else {
+            panic!("Expected ExtractorError::Io");
+        }
     }
 
     #[test]
@@ -186,6 +191,51 @@ mod tests {
 
         let config_err = ExtractorError::config("invalid config");
         assert_eq!(config_err.category(), "config");
+
+        let csv_err = ExtractorError::Csv(csv::Error::new(csv::ErrorKind::UnequalLengths {
+            pos: None,
+            expected_len: 2,
+            len: 3,
+        }));
+        assert_eq!(csv_err.category(), "csv");
+
+        let json_err = ExtractorError::Json(serde_json::Error::syntax(
+            serde_json::error::ErrorCode::EofWhileParsingObject,
+            1,
+            1,
+        ));
+        assert_eq!(json_err.category(), "json");
+
+        let index_err = ExtractorError::index_error(IndexErrorKind::NotFound, Some("index.json"));
+        assert_eq!(index_err.category(), "index");
+
+        let filter_err = ExtractorError::filter_error(
+            FilterErrorKind::InvalidCondition,
+            Some("gene_name".to_string()),
+        );
+        assert_eq!(filter_err.category(), "filter");
+
+        let mmap_err = ExtractorError::Mmap("mmap error".to_string());
+        assert_eq!(mmap_err.category(), "mmap");
+
+        let parallel_err = ExtractorError::Parallel("parallel error".to_string());
+        assert_eq!(parallel_err.category(), "parallel");
+
+        let column_err = ExtractorError::ColumnNotFound("gene_name".to_string());
+        assert_eq!(column_err.category(), "column");
+
+        let data_err = ExtractorError::InvalidDataFormat {
+            column: "gene_name".to_string(),
+            message: "invalid format".to_string(),
+            row: Some(1),
+        };
+        assert_eq!(data_err.category(), "data");
+
+        let resource_err = ExtractorError::ResourceExhaustion("out of memory".to_string());
+        assert_eq!(resource_err.category(), "resource");
+
+        let other_err = ExtractorError::Other("unexpected error".to_string());
+        assert_eq!(other_err.category(), "other");
     }
 
     #[test]
@@ -194,6 +244,11 @@ mod tests {
             FilterErrorKind::InvalidCondition,
             Some("gene_name".to_string()),
         );
-        assert!(matches!(err, ExtractorError::Filter { .. }));
+        if let ExtractorError::Filter { kind, column } = err {
+            assert_eq!(kind, FilterErrorKind::InvalidCondition);
+            assert_eq!(column.unwrap(), "gene_name");
+        } else {
+            panic!("Expected ExtractorError::Filter");
+        }
     }
 }
