@@ -94,31 +94,54 @@ fn bench_file_sizes(c: &mut Criterion) {
 fn bench_parallel_processing(c: &mut Criterion) {
     let mut group = c.benchmark_group("parallel_processing");
     group.measurement_time(Duration::from_secs(30));
-    
+    group.sample_size(50);
+
     setup_benchmark_data("parallel_test.csv", 5_000_000).unwrap();
-    
-    for threads in [1, 2, 4, 8, 16].iter() {
-        group.bench_with_input(BenchmarkId::new("threads", threads), threads, |b, &threads| {
+
+    for &threads in [1, 2, 4, 8, 16].iter() {
+        group.bench_with_input(BenchmarkId::new("threads", threads), &threads, |b, &threads| {
             b.iter(|| {
                 let mut filter = BioFilter::builder("parallel_test.csv", "output.csv")
                     .with_config(Config {
                         parallel: true,
-                        num_threads: Some(*threads),
+                        num_threads: Some(threads),
                         ..Config::default()
                     })
                     .build()
                     .unwrap();
-                
+
                 filter.add_filter(Box::new(ColumnFilter::new(
                     "expression".to_string(),
                     FilterCondition::Numeric(NumericCondition::GreaterThan(5.0))
                 ).unwrap()));
-                
+
                 black_box(filter.process().unwrap())
             })
         });
     }
-    
+
+    for &chunk_size in [1024, 4096, 16384, 65536].iter() {
+        group.bench_with_input(BenchmarkId::new("chunk_size", chunk_size), &chunk_size, |b, &chunk_size| {
+            b.iter(|| {
+                let mut filter = BioFilter::builder("parallel_test.csv", "output.csv")
+                    .with_config(Config {
+                        parallel: true,
+                        chunk_size,
+                        ..Config::default()
+                    })
+                    .build()
+                    .unwrap();
+
+                filter.add_filter(Box::new(ColumnFilter::new(
+                    "expression".to_string(),
+                    FilterCondition::Numeric(NumericCondition::GreaterThan(5.0))
+                ).unwrap()));
+
+                black_box(filter.process().unwrap())
+            })
+        });
+    }
+
     group.finish();
 }
 
