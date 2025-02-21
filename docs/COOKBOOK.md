@@ -118,6 +118,9 @@ filter.add_filter(Box::new(CombinedFilter::new(vec![
 1. Regular Expressions
 ```rust
 // Find genes matching a pattern
+let mut filter = BioFilter::builder("genes.csv", "pattern_matched_genes.csv")
+    .build()?;
+
 filter.add_filter(Box::new(ColumnFilter::new(
     "gene_name",
     FilterCondition::Regex("HOX[A-D]\\d+".to_string())
