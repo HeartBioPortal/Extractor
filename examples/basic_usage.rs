@@ -1,185 +1,98 @@
+//! Example suite for `extractor` demonstrating common bioinformatics filters.
+//! - Reuses helpers to reduce boilerplate
+//! - Avoids overwriting sample data if present
+//! - Creates/uses an index for chromosome queries
+//! - Prints consistent, readable summaries
+
 use extractor::{
-    BioFilter, Config, FilterCondition, NumericCondition,
-    ColumnFilter, FileIndex,
+    BioFilter, ColumnFilter, FileIndex, FilterCondition, NumericCondition, RangeCondition,
 };
-use std::path::PathBuf;
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Generate sample data for examples
-    create_sample_data()?;
+type DynResult<T> = Result<T, Box<dyn Error>>;
 
-    println!("1. Basic Filtering - Gene Expression Analysis");
-    expression_analysis()?;
+const DATA: &str = "sample_data.csv";
+const IDX_PATH: &str = "sample_data.index";
 
-    println!("\n2. Multiple Conditions - QC Filtering");
-    quality_control_filtering()?;
-    
-    println!("\n3. Chromosomal Region Analysis");
-    chromosome_analysis()?;
+fn main() -> DynResult<()> {
+    ensure_sample_data(DATA)?;
 
-    println!("\n4. P-value Based Filtering");
-    pvalue_filtering()?;
+    section("1. Basic Filtering — Gene Expression");
+    run_and_report(expression_analysis)?;
 
-    println!("\n5. Complex Filtering - DEG Analysis");
-    deg_analysis()?;
-    
+    section("2. Multiple Conditions — QC Filtering");
+    run_and_report(quality_control_filtering)?;
+
+    section("3. Chromosomal Region Analysis");
+    run_and_report(chromosome_analysis)?;
+
+    section("4. P-value Based Filtering");
+    run_and_report(pvalue_filtering)?;
+
+    section("5. Complex Filtering — DEG Analysis");
+    run_and_report(deg_analysis)?;
+
     Ok(())
 }
 
-/// Example 1: Basic gene expression filtering
-fn expression_analysis() -> Result<(), Box<dyn std::error::Error>> {
-    let mut filter = BioFilter::builder("sample_data.csv", "high_expression.csv")
-        .build()?;
+/* --------------------------------- Helpers -------------------------------- */
 
-    // Filter genes with high expression
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "expression_level".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(5.0))
-    )?));
+fn section(title: &str) {
+    println!("\n=== {title} ===");
+}
 
-    let stats = filter.process()?;
-    println!("Found {} highly expressed genes", stats.rows_matched);
+fn run_and_report<F>(f: F) -> DynResult<()>
+where
+    F: Fn() -> DynResult<usize>,
+{
+    let matched = f()?;
+    println!("→ Rows matched: {matched}");
     Ok(())
 }
 
-
-/// Example 2: Multiple QC filters
-fn quality_control_filtering() -> Result<(), Box<dyn std::error::Error>> {
-    let mut filter = BioFilter::builder("sample_data.csv", "qc_passed.csv")
-        .build()?;
-
-    // Add multiple QC filters
-    let qc_filters = vec![
-        ColumnFilter::new(
-            "read_count".to_string(),
-            FilterCondition::Numeric(NumericCondition::GreaterThan(100.0))
-        )?,
-        ColumnFilter::new(
-            "mapping_quality".to_string(),
-            FilterCondition::Numeric(NumericCondition::GreaterThan(30.0))
-        )?,
-        ColumnFilter::new(
-            "duplicate_rate".to_string(),
-            FilterCondition::Numeric(NumericCondition::LessThan(0.1))
-        )?,
-    ];
-
-    for filter_condition in qc_filters {
-        filter.add_filter(Box::new(filter_condition));
+fn build_filter(input: &str, output: &str, index: Option<&str>) -> DynResult<BioFilter> {
+    let mut b = BioFilter::builder(input, output);
+    if let Some(idx) = index {
+        b = b.with_index(idx);
     }
-
-    let stats = filter.process()?;
-    println!("Identified {} high-quality samples", stats.rows_matched);
-    Ok(())
+    Ok(b.build()?)
 }
 
-
-/// Example 3: Chromosome-specific analysis
-fn chromosome_analysis() -> Result<(), Box<dyn std::error::Error>> {
-    // Create an index for faster chromosome-based queries
-    let index_path = "sample_data.index";
-    if !PathBuf::from(index_path).exists() {
-        let index = FileIndex::builder("sample_data.csv", "chromosome")
-            .build()?;
-        index.save(index_path)?;
+fn add_filters(filter: &mut BioFilter, filters: impl IntoIterator<Item = ColumnFilter>) {
+    for f in filters {
+        filter.add_filter(Box::new(f));
     }
-
-    let mut filter = BioFilter::builder("sample_data.csv", "chr1_genes.csv")
-        .with_index(index_path)
-        .build()?;
-
-    // Filter for genes on chromosome 1 with specific conditions
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "chromosome".to_string(),
-        FilterCondition::Equals("chr1".to_string())
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "start_position".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(1_000_000.0))
-    )?));
-
-    let stats = filter.process()?;
-    println!("Found {} genes on chromosome 1", stats.rows_matched);
-    Ok(())
 }
 
-/// Example 4: Statistical significance filtering
-fn pvalue_filtering() -> Result<(), Box<dyn std::error::Error>> {
-    let mut filter = BioFilter::builder("sample_data.csv", "significant_genes.csv")
-        .build()?;
-
-    // Filter for statistically significant results
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "p_value".to_string(),
-        FilterCondition::Numeric(NumericCondition::LessThan(0.05))
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "fold_change".to_string(),
-        FilterCondition::Range(RangeCondition {
-            min: -2.0,
-            max: 2.0,
-            inclusive: false,
-        })
-    )?));
-
-    let stats = filter.process()?;
-    println!("Found {} differentially expressed genes", stats.rows_matched);
-    Ok(())
+/// Create sample data once; skip if file already exists and is non-empty.
+fn ensure_sample_data(path: &str) -> DynResult<()> {
+    let p = Path::new(path);
+    if p.exists() && fs::metadata(p)?.len() > 0 {
+        return Ok(());
+    }
+    create_sample_data(p)
 }
 
-/// Example 5: Complex DEG analysis
-
-fn deg_analysis() -> Result<(), Box<dyn std::error::Error>> {
-    let mut filter = BioFilter::builder("sample_data.csv", "significant_degs.csv")
-        .build()?;
-
-    // Multiple conditions for DEG analysis
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "p_value".to_string(),
-        FilterCondition::Numeric(NumericCondition::LessThan(0.05))
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "adj_p_value".to_string(),
-        FilterCondition::Numeric(NumericCondition::LessThan(0.1))
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "log2fc".to_string(),
-        FilterCondition::Range(RangeCondition {
-            min: 1.0,
-            max: f64::INFINITY,
-            inclusive: true,
-        })
-    )?));
-
-    filter.add_filter(Box::new(ColumnFilter::new(
-        "base_mean".to_string(),
-        FilterCondition::Numeric(NumericCondition::GreaterThan(10.0))
-    )?));
-
-    let stats = filter.process()?;
-    println!("Found {} significant DEGs", stats.rows_matched);
-    Ok(())
-}
-
-/// Create sample data for examples
-fn create_sample_data() -> Result<(), Box<dyn std::error::Error>> {
+/// Generate a simple CSV with numeric columns commonly used in analyses.
+fn create_sample_data(path: &Path) -> DynResult<()> {
     use std::fs::File;
     use std::io::Write;
 
-    let mut file = File::create("sample_data.csv")?;
-    
-    // Write header
-    writeln!(file, "gene_id,chromosome,start_position,end_position,expression_level,\
-        read_count,mapping_quality,duplicate_rate,p_value,adj_p_value,log2fc,base_mean")?;
+    let mut file = File::create(path)?;
 
-    // Generate sample data
+    // Header
+    writeln!(
+        file,
+        "gene_id,chromosome,start_position,end_position,expression_level,\
+         read_count,mapping_quality,duplicate_rate,p_value,adj_p_value,log2fc,base_mean"
+    )?;
+
+    // Rows (deterministic mock data)
     for i in 0..1000 {
         let chr = format!("chr{}", (i % 23) + 1);
-        let start_pos = i * 1000 + 1000000;
+        let start_pos = i * 1000 + 1_000_000;
         let end_pos = start_pos + 500;
         let expr = (i as f64) / 100.0;
         let reads = 100.0 + (i as f64);
@@ -190,9 +103,147 @@ fn create_sample_data() -> Result<(), Box<dyn std::error::Error>> {
         let log2fc = (i as f64 - 500.0) / 100.0;
         let base_mean = i as f64 / 10.0;
 
-        writeln!(file, "GENE_{},{},{},{},{:.2},{:.0},{:.1},{:.3},{:.4},{:.4},{:.2},{:.1}",
-            i, chr, start_pos, end_pos, expr, reads, mapq, dup_rate, pval, adj_pval, log2fc, base_mean)?;
+        writeln!(
+            file,
+            "GENE_{},{},{},{},{:.2},{:.0},{:.1},{:.3},{:.4},{:.4},{:.2},{:.1}",
+            i, chr, start_pos, end_pos, expr, reads, mapq, dup_rate, pval, adj_pval, log2fc,
+            base_mean
+        )?;
     }
 
     Ok(())
+}
+
+/* -------------------------------- Examples -------------------------------- */
+
+/// Example 1: Basic gene expression filtering
+fn expression_analysis() -> DynResult<usize> {
+    let mut filter = build_filter(DATA, "high_expression.csv", None)?;
+
+    add_filters(
+        &mut filter,
+        [ColumnFilter::new(
+            "expression_level".into(),
+            FilterCondition::Numeric(NumericCondition::GreaterThan(5.0)),
+        )?],
+    );
+
+    let stats = filter.process()?;
+    Ok(stats.rows_matched)
+}
+
+/// Example 2: Multiple QC filters (AND-composed)
+fn quality_control_filtering() -> DynResult<usize> {
+    let mut filter = build_filter(DATA, "qc_passed.csv", None)?;
+
+    add_filters(
+        &mut filter,
+        [
+            ColumnFilter::new(
+                "read_count".into(),
+                FilterCondition::Numeric(NumericCondition::GreaterThan(100.0)),
+            )?,
+            ColumnFilter::new(
+                "mapping_quality".into(),
+                FilterCondition::Numeric(NumericCondition::GreaterThan(30.0)),
+            )?,
+            ColumnFilter::new(
+                "duplicate_rate".into(),
+                FilterCondition::Numeric(NumericCondition::LessThan(0.10)),
+            )?,
+        ],
+    );
+
+    let stats = filter.process()?;
+    Ok(stats.rows_matched)
+}
+
+/// Example 3: Chromosome-specific queries using an index
+fn chromosome_analysis() -> DynResult<usize> {
+    // Build and persist an index (once) for faster lookups on "chromosome"
+    if !PathBuf::from(IDX_PATH).exists() {
+        let index = FileIndex::builder(DATA, "chromosome").build()?;
+        index.save(IDX_PATH)?;
+    }
+
+    let mut filter = build_filter(DATA, "chr1_genes.csv", Some(IDX_PATH))?;
+
+    add_filters(
+        &mut filter,
+        [
+            ColumnFilter::new(
+                "chromosome".into(),
+                FilterCondition::Equals("chr1".into()),
+            )?,
+            ColumnFilter::new(
+                "start_position".into(),
+                FilterCondition::Numeric(NumericCondition::GreaterThan(1_000_000.0)),
+            )?,
+        ],
+    );
+
+    let stats = filter.process()?;
+    Ok(stats.rows_matched)
+}
+
+/// Example 4: Statistical significance filtering
+fn pvalue_filtering() -> DynResult<usize> {
+    let mut filter = build_filter(DATA, "significant_genes.csv", None)?;
+
+    // Note: This selects rows with p_value < 0.05 and fold_change in (-2, 2).
+    // Adjust the range or add additional passes if you want |log2fc| ≥ 1 instead.
+    add_filters(
+        &mut filter,
+        [
+            ColumnFilter::new(
+                "p_value".into(),
+                FilterCondition::Numeric(NumericCondition::LessThan(0.05)),
+            )?,
+            ColumnFilter::new(
+                "fold_change".into(),
+                FilterCondition::Range(RangeCondition {
+                    min: -2.0,
+                    max: 2.0,
+                    inclusive: false,
+                }),
+            )?,
+        ],
+    );
+
+    let stats = filter.process()?;
+    Ok(stats.rows_matched)
+}
+
+/// Example 5: Complex DEG analysis (typical thresholds)
+fn deg_analysis() -> DynResult<usize> {
+    let mut filter = build_filter(DATA, "significant_degs.csv", None)?;
+
+    add_filters(
+        &mut filter,
+        [
+            ColumnFilter::new(
+                "p_value".into(),
+                FilterCondition::Numeric(NumericCondition::LessThan(0.05)),
+            )?,
+            ColumnFilter::new(
+                "adj_p_value".into(),
+                FilterCondition::Numeric(NumericCondition::LessThan(0.10)),
+            )?,
+            ColumnFilter::new(
+                "log2fc".into(),
+                FilterCondition::Range(RangeCondition {
+                    min: 1.0,
+                    max: f64::INFINITY,
+                    inclusive: true,
+                }),
+            )?,
+            ColumnFilter::new(
+                "base_mean".into(),
+                FilterCondition::Numeric(NumericCondition::GreaterThan(10.0)),
+            )?,
+        ],
+    );
+
+    let stats = filter.process()?;
+    Ok(stats.rows_matched)
 }
